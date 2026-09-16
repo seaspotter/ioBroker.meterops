@@ -66,6 +66,206 @@
                     "offset": 0
                 }
             ]
+        },
+        "heatpump_electric": {
+            "role": "heatpump_electric",
+            "label": "Heat Pump Electric (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.heatpump_meter.electric_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "heatpump_thermal": {
+            "role": "heatpump_thermal",
+            "label": "Heat Pump Thermal (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.heatpump_meter.thermal_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "wallbox_1": {
+            "role": "known_subconsumer",
+            "label": "Wallbox 1 (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.wallbox_1.imported_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "wallbox_2": {
+            "role": "known_subconsumer",
+            "label": "Wallbox 2 (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.wallbox_2.imported_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_washer": {
+            "role": "known_subconsumer",
+            "label": "Washing Machine (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_washer.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_dishwasher": {
+            "role": "known_subconsumer",
+            "label": "Dishwasher (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_dishwasher.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_tv": {
+            "role": "known_subconsumer",
+            "label": "TV (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_tv.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_fridge": {
+            "role": "known_subconsumer",
+            "label": "Beverage Fridge (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_fridge.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_ventilation": {
+            "role": "known_subconsumer",
+            "label": "Ventilation (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_ventilation.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_network_cabinet": {
+            "role": "known_subconsumer",
+            "label": "Network Cabinet (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_network_cabinet.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_desk": {
+            "role": "known_subconsumer",
+            "label": "Desk (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_desk.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_freezer": {
+            "role": "known_subconsumer",
+            "label": "Chest Freezer (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_freezer.energy_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_3dprinter": {
+            "role": "known_subconsumer",
+            "label": "3D-Drucker 3D printer (Shelly)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_3dprinter.energy_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_garage_heater": {
+            "role": "known_subconsumer",
+            "label": "Garage Heater (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_garage_heater.energy_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "submeter_well_pump": {
+            "role": "known_subconsumer",
+            "label": "Well Pump (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.submeter_well_pump.energy_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
         }
     }
 }
