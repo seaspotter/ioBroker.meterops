@@ -4,6 +4,7 @@ import Button from '@material-ui/core/Button';
 import IconButton from '@material-ui/core/IconButton';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import I18n from '@iobroker/adapter-react/i18n';
 
 import type { MeterGroupConfig, RegistryConfig } from '../../../src/lib/registry-types';
 
@@ -69,27 +70,27 @@ export default class GroupsTab extends React.Component<GroupsTabProps, GroupsTab
                             <IconButton
                                 size="small"
                                 onClick={() => this.removeGroup(groupId)}
-                                title="Remove group"
+                                title={I18n.t('Remove group')}
                             >
                                 &#10005;
                             </IconButton>
                         </h4>
                         <div>
                             <TextField
-                                label="Label"
+                                label={I18n.t('Label')}
                                 value={group.label}
                                 onChange={e => this.updateGroup(groupId, { label: e.target.value })}
                                 style={{ marginRight: 16 }}
                             />
                             <TextField
-                                label="Unit"
+                                label={I18n.t('Unit')}
                                 value={group.unit}
                                 onChange={e => this.updateGroup(groupId, { unit: e.target.value })}
                             />
                         </div>
                         <div>
-                            <p>Members:</p>
-                            {meterIds.length === 0 && <em>No meters configured yet.</em>}
+                            <p>{I18n.t('Members:')}</p>
+                            {meterIds.length === 0 && <em>{I18n.t('No meters configured yet.')}</em>}
                             {meterIds.map(meterId => (
                                 <FormControlLabel
                                     key={meterId}
@@ -108,12 +109,12 @@ export default class GroupsTab extends React.Component<GroupsTabProps, GroupsTab
 
                 <div>
                     <TextField
-                        label="New group id"
+                        label={I18n.t('New group id')}
                         placeholder="wallbox_total"
                         value={this.state.newGroupId}
                         onChange={e => this.setState({ newGroupId: e.target.value })}
                     />
-                    <Button onClick={() => this.addGroup()}>+ Add group</Button>
+                    <Button onClick={() => this.addGroup()}>+ {I18n.t('Add group')}</Button>
                 </div>
             </div>
         );

@@ -6,6 +6,7 @@ import Tab from '@material-ui/core/Tab';
 
 import GenericApp from '@iobroker/adapter-react/GenericApp';
 import type { GenericAppProps, GenericAppSettings } from '@iobroker/adapter-react/types';
+import I18n from '@iobroker/adapter-react/i18n';
 
 import type { RegistryConfig } from '../../src/lib/registry-types';
 import { parseRegistryConfigLoose, serializeRegistryConfig } from '../../src/lib/registry-json';
@@ -88,10 +89,10 @@ class App extends GenericApp {
                         textColor="primary"
                         variant="scrollable"
                     >
-                        <Tab label="General" />
-                        <Tab label="Meters" />
-                        <Tab label="Groups" />
-                        <Tab label="Tariffs" />
+                        <Tab label={I18n.t('General')} />
+                        <Tab label={I18n.t('Meters')} />
+                        <Tab label={I18n.t('Groups')} />
+                        <Tab label={I18n.t('Tariffs')} />
                     </Tabs>
                 </AppBar>
 
