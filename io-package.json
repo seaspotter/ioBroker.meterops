@@ -73,6 +73,7 @@
             "config": "materialize"
         },
         "supportCustoms": true,
+        "nogit": true,
         "eraseOnUpload": true,
         "dependencies": [
             {
