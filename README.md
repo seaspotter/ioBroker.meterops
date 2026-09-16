@@ -21,6 +21,8 @@ physical devices with validity periods and offsets, and computes a fixed catalog
 roles you've actually configured. See [MeterOps-Concept.md](MeterOps-Concept.md) for the full design
 background, KPI formulas, and the reasoning behind each architecture decision.
 
+Documentation in other languages: [Deutsch](docs/de/meterops.md)
+
 ### Configuration
 
 The admin UI has four tabs:
