@@ -7,6 +7,7 @@ import TableRow from '@material-ui/core/TableRow';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import IconButton from '@material-ui/core/IconButton';
+import I18n from '@iobroker/adapter-react/i18n';
 
 import type { RegistryConfig, TariffEntry } from '../../../src/lib/registry-types';
 
@@ -85,7 +86,7 @@ export default class TariffsTab extends React.Component<TariffsTabProps, Tariffs
                             <IconButton
                                 size="small"
                                 onClick={() => this.removeTariff(tariffId)}
-                                title="Remove tariff"
+                                title={I18n.t('Remove tariff')}
                             >
                                 &#10005;
                             </IconButton>
@@ -93,9 +94,9 @@ export default class TariffsTab extends React.Component<TariffsTabProps, Tariffs
                         <Table size="small">
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Valid from</TableCell>
-                                    <TableCell>Valid to</TableCell>
-                                    <TableCell>Value</TableCell>
+                                    <TableCell>{I18n.t('Valid from')}</TableCell>
+                                    <TableCell>{I18n.t('Valid to')}</TableCell>
+                                    <TableCell>{I18n.t('Value')}</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableHead>
@@ -139,7 +140,7 @@ export default class TariffsTab extends React.Component<TariffsTabProps, Tariffs
                                             <IconButton
                                                 size="small"
                                                 onClick={() => this.removeEntry(tariffId, entries, index)}
-                                                title="Remove entry"
+                                                title={I18n.t('Remove entry')}
                                             >
                                                 &#10005;
                                             </IconButton>
@@ -152,19 +153,19 @@ export default class TariffsTab extends React.Component<TariffsTabProps, Tariffs
                             size="small"
                             onClick={() => this.addEntry(tariffId, entries)}
                         >
-                            + Add entry
+                            + {I18n.t('Add entry')}
                         </Button>
                     </div>
                 ))}
 
                 <div>
                     <TextField
-                        label="New tariff id"
+                        label={I18n.t('New tariff id')}
                         placeholder="grid_price"
                         value={this.state.newTariffId}
                         onChange={e => this.setState({ newTariffId: e.target.value })}
                     />
-                    <Button onClick={() => this.addTariff()}>+ Add tariff</Button>
+                    <Button onClick={() => this.addTariff()}>+ {I18n.t('Add tariff')}</Button>
                 </div>
             </div>
         );

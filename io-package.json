@@ -46,7 +46,13 @@
         "authors": [
             "SeaSpotter <florian.horch@gmail.com>"
         ],
-        "keywords": ["energy", "meter", "kpi", "history", "influxdb"],
+        "keywords": [
+            "energy",
+            "meter",
+            "kpi",
+            "history",
+            "influxdb"
+        ],
         "licenseInformation": {
             "type": "free",
             "license": "MIT"

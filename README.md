@@ -12,83 +12,67 @@
 
 ## meterops adapter for ioBroker
 
-Continuous meter-reading history with automatic device-swap handling and computed energy KPIs
+Continuous meter-reading history with automatic device-swap handling and computed energy KPIs.
+
+Meters get replaced over the years (a meter swap, a new wallbox, a new heat pump). MeterOps keeps a
+*logical* reading per meter (e.g. "grid import") continuous across such swaps via a registry of
+physical devices with validity periods and offsets, and computes a fixed catalog of energy KPIs
+(self-consumption ratio, autarky, COP, specific yield, battery efficiency, and more) from whichever
+roles you've actually configured. See [MeterOps-Concept.md](MeterOps-Concept.md) for the full design
+background, KPI formulas, and the reasoning behind each architecture decision.
+
+### Configuration
+
+The admin UI has four tabs:
+
+- **General** - which history instance (e.g. `influxdb.0`) meter/group/KPI/tariff states are
+  automatically logged to, and the cron schedule for periodic snapshots (used for period-based KPIs,
+  see below).
+- **Meters** - each logical meter's role, label, unit, and its source history (the raw ioBroker state
+  it reads from, with a validity period, scale, and offset - multiple sources per meter for device
+  swaps).
+- **Groups** - named sums over specific meters (e.g. "all wallboxes combined"), for reporting only.
+- **Tariffs** - fixed-rate price registries (e.g. grid import/feed-in price) with validity periods.
+
+### KPIs
+
+Computed automatically once their required roles are configured - see
+[MeterOps-Concept.md](MeterOps-Concept.md#kpi-catalog-fixed-code-no-user-defined-formulas) for exact
+formulas:
+
+| KPI | Needs |
+|-----|-------|
+| `total_consumption` | grid import/export, PV production, battery charge/discharge |
+| `self_consumption_ratio` | PV production, grid export |
+| `autarky` | total consumption, grid import |
+| `pv_share_of_consumption` | PV production, grid export, total consumption |
+| `cop` | heat pump electric + thermal |
+| `battery_efficiency` | battery charge/discharge |
+| `specific_yield` | PV production, installed kWp |
+| `household_consumption` | total consumption minus known submeters (residual) |
+
+Two variants of each are written: `kpis.*` (live, from each meter's lifetime-cumulative value) and
+`periodKpis.*` (from the delta between two periodic snapshots - see the concept doc's note on why
+ratio KPIs need this to stay physically meaningful once meters have been running for different
+amounts of time).
 
 ## Developer manual
-This section is intended for the developer. It can be deleted later.
-
-### DISCLAIMER
-
-Please make sure that you consider copyrights and trademarks when you use names or logos of a company and add a disclaimer to your README.
-You can check other adapters for examples or ask in the developer community. Using a name or logo of a company without permission may cause legal problems for you.
-
-### Getting started
-
-You are almost done, only a few steps left:
-1. Create a new repository on GitHub with the name `ioBroker.meterops`
-1. Initialize the current folder as a new git repository:  
-    ```bash
-    git init -b main
-    git add .
-    git commit -m "Initial commit"
-    ```
-1. Link your local repository with the one on GitHub:  
-    ```bash
-    git remote add origin https://github.com/seaspotter/ioBroker.meterops
-    ```
-
-1. Push all files to the GitHub repo:  
-    ```bash
-    git push origin main
-    ```
-
-1. Head over to [src/main.ts](src/main.ts) and start programming!
-
-### Best Practices
-We've collected some [best practices](https://github.com/ioBroker/ioBroker.repositories#development-and-coding-best-practices) regarding ioBroker development and coding in general. If you're new to ioBroker or Node.js, you should
-check them out. If you're already experienced, you should also take a look at them - you might learn something new :)
-
-### State Roles
-When creating state objects, it is important to use the correct role for the state. The role defines how the state should be interpreted by visualizations and other adapters. For a list of available roles and their meanings, please refer to the [state roles documentation](https://www.iobroker.net/#en/documentation/dev/stateroles.md).
-
-**Important:** Do not invent your own custom role names. If you need a role that is not part of the official list, please contact the ioBroker developer community for guidance and discussion about adding new roles.
+This section is intended for the developer.
 
 ### Scripts in `package.json`
 Several npm scripts are predefined for your convenience. You can run them using `npm run <scriptname>`
 | Script name | Description |
 |-------------|-------------|
-| `build` | Compile the TypeScript sources. |
-| `watch` | Compile the TypeScript sources and watch for changes. |
+| `build` | Compile the TypeScript and React sources. |
+| `watch` | Compile and watch for changes. |
+| `build:react` / `watch:react` | Compile only the admin React UI. |
 | `test:ts` | Executes the tests you defined in `*.test.ts` files. |
 | `test:package` | Ensures your `package.json` and `io-package.json` are valid. |
-| `test:integration` | Tests the adapter startup with an actual instance of ioBroker. |
 | `test` | Performs a minimal test run on package files and your tests. |
-| `check` | Performs a type-check on your code (without compiling anything). |
+| `check` | Performs a type-check on both the adapter and admin sources. |
 | `lint` | Runs `ESLint` to check your code for formatting errors and potential bugs. |
 | `translate` | Translates texts in your adapter to all required languages, see [`@iobroker/adapter-dev`](https://github.com/ioBroker/adapter-dev#manage-translations) for more details. |
-
-### Configuring the compilation
-The adapter template uses [esbuild](https://esbuild.github.io/) to compile TypeScript and/or React code. You can configure many compilation settings 
-either in `tsconfig.json` or by changing options for the build tasks. These options are described in detail in the
-[`@iobroker/adapter-dev` documentation](https://github.com/ioBroker/adapter-dev#compile-adapter-files).
-
-### Writing tests
-When done right, testing code is invaluable, because it gives you the 
-confidence to change your code while knowing exactly if and when 
-something breaks. A good read on the topic of test-driven development 
-is https://hackernoon.com/introduction-to-test-driven-development-tdd-61a13bc92d92. 
-Although writing tests before the code might seem strange at first, but it has very 
-clear upsides.
-
-The template provides you with basic tests for the adapter startup and package files.
-It is recommended that you add your own tests into the mix.
-
-### Publishing the adapter
-Using GitHub Actions, you can enable automatic releases on npm whenever you push a new git tag that matches the form 
-`v<major>.<minor>.<patch>`. We **strongly recommend** that you do. The necessary steps are described in `.github/workflows/test-and-release.yml`.
-
-To get your adapter released in ioBroker, please refer to the documentation 
-of [ioBroker.repositories](https://github.com/ioBroker/ioBroker.repositories#requirements-for-adapter-to-get-added-to-the-latest-repository).
+| `release` | Bumps the version, updates the changelog, and publishes a release - see [`@alcalzone/release-script`](https://github.com/AlCalzone/release-script). |
 
 ### Test the adapter manually with dev-server
 Since you set up `dev-server`, you can use it to run, test and debug your adapter.
@@ -102,9 +86,19 @@ The ioBroker.admin interface will then be available at http://localhost:8082/
 
 Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev-server#command-line) for more details.
 
-## Changelog
+### Publishing the adapter
+Using GitHub Actions, you can enable automatic releases on npm whenever you push a new git tag that matches the form
+`v<major>.<minor>.<patch>`. The necessary steps are described in `.github/workflows/test-and-release.yml`.
 
-### 0.0.1
+To get the adapter released in ioBroker, see the documentation
+of [ioBroker.repositories](https://github.com/ioBroker/ioBroker.repositories#requirements-for-adapter-to-get-added-to-the-latest-repository).
+
+## Changelog
+<!--
+    Placeholder for the next version (at the beginning of the line):
+    ### **WORK IN PROGRESS**
+-->
+### **WORK IN PROGRESS**
 * (SeaSpotter) initial release
 
 ## License

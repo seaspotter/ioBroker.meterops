@@ -13,6 +13,7 @@ import IconButton from '@material-ui/core/IconButton';
 
 import DialogSelectID from '@iobroker/adapter-react/Dialogs/SelectID';
 import type Connection from '@iobroker/adapter-react/Connection';
+import I18n from '@iobroker/adapter-react/i18n';
 
 import { SINGLETON_ROLES, REPEATABLE_ROLES } from '../../../src/lib/registry-types';
 import type { MeterConfig, MeterSource, RegistryConfig } from '../../../src/lib/registry-types';
@@ -97,12 +98,12 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Meter id</TableCell>
-                            <TableCell>Role</TableCell>
-                            <TableCell>Label</TableCell>
-                            <TableCell>Unit</TableCell>
-                            <TableCell>In residual</TableCell>
-                            <TableCell>Sources</TableCell>
+                            <TableCell>{I18n.t('Meter id')}</TableCell>
+                            <TableCell>{I18n.t('Role')}</TableCell>
+                            <TableCell>{I18n.t('Label')}</TableCell>
+                            <TableCell>{I18n.t('Unit')}</TableCell>
+                            <TableCell>{I18n.t('In residual')}</TableCell>
+                            <TableCell>{I18n.t('Sources')}</TableCell>
                             <TableCell />
                         </TableRow>
                     </TableHead>
@@ -163,7 +164,7 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                                 })
                                             }
                                         >
-                                            {meter.sources.length} source{meter.sources.length === 1 ? '' : 's'}{' '}
+                                            {I18n.t('%s source(s)', String(meter.sources.length))}{' '}
                                             {this.state.expandedMeterId === meterId ? '▲' : '▼'}
                                         </Button>
                                     </TableCell>
@@ -171,7 +172,7 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                         <IconButton
                                             size="small"
                                             onClick={() => this.removeMeter(meterId)}
-                                            title="Remove meter"
+                                            title={I18n.t('Remove meter')}
                                         >
                                             &#10005;
                                         </IconButton>
@@ -184,11 +185,11 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                             <Table size="small">
                                                 <TableHead>
                                                     <TableRow>
-                                                        <TableCell>State id</TableCell>
-                                                        <TableCell>Valid from</TableCell>
-                                                        <TableCell>Valid to</TableCell>
-                                                        <TableCell>Scale</TableCell>
-                                                        <TableCell>Offset</TableCell>
+                                                        <TableCell>{I18n.t('State id')}</TableCell>
+                                                        <TableCell>{I18n.t('Valid from')}</TableCell>
+                                                        <TableCell>{I18n.t('Valid to')}</TableCell>
+                                                        <TableCell>{I18n.t('Scale')}</TableCell>
+                                                        <TableCell>{I18n.t('Offset')}</TableCell>
                                                         <TableCell />
                                                     </TableRow>
                                                 </TableHead>
@@ -204,7 +205,7 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                                                         })
                                                                     }
                                                                 >
-                                                                    {source.stateId || '(pick a state...)'}
+                                                                    {source.stateId || I18n.t('(pick a state...)')}
                                                                 </Button>
                                                             </TableCell>
                                                             <TableCell>
@@ -259,7 +260,7 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                                                     onClick={() =>
                                                                         this.removeSource(meterId, meter, index)
                                                                     }
-                                                                    title="Remove source"
+                                                                    title={I18n.t('Remove source')}
                                                                 >
                                                                     &#10005;
                                                                 </IconButton>
@@ -272,7 +273,7 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
                                                 size="small"
                                                 onClick={() => this.addSource(meterId, meter)}
                                             >
-                                                + Add source
+                                                + {I18n.t('Add source')}
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -284,12 +285,12 @@ export default class MetersTab extends React.Component<MetersTabProps, MetersTab
 
                 <div style={{ marginTop: 16 }}>
                     <TextField
-                        label="New meter id"
+                        label={I18n.t('New meter id')}
                         placeholder="wallbox_1"
                         value={this.state.newMeterId}
                         onChange={e => this.setState({ newMeterId: e.target.value })}
                     />
-                    <Button onClick={() => this.addMeter()}>+ Add meter</Button>
+                    <Button onClick={() => this.addMeter()}>+ {I18n.t('Add meter')}</Button>
                 </div>
 
                 {this.state.pickingSource && (
