@@ -287,6 +287,17 @@ decisions, not a fix-up pass before submission.
   a screenshot of any custom admin UI in the README) — budget for two
   distinct review passes, not one.
 
+## Future ideas (not phase 1)
+
+- **Power-to-energy integration ("simcounter")**: some devices only expose
+  instantaneous power (W/kW), not a cumulative energy counter - e.g. air
+  conditioning has no metering at all in the real setup used to validate
+  this concept. A future resolver mode could numerically integrate a power
+  reading over time into a synthetic cumulative counter, so such devices
+  can still be registered as `known_subconsumer` instances. Real scope
+  increase (accuracy/drift over integration gaps, restart handling), not
+  attempted until a concrete device actually needs it.
+
 ## Development stages
 
 ### Phase 1 — Adapter skeleton + resolver core
