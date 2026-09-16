@@ -132,6 +132,25 @@ correcting for in phase 1; revisit if `household_consumption` looks
 systematically off in Phase 2. (`battery_efficiency` above now measures
 this directly from real data instead of relying on the assumed range.)
 
+**Known limitation:** the ratio-type KPIs (`self_consumption_ratio`,
+`autarky`, `cop`, `battery_efficiency`, `pv_share_of_consumption`,
+`specific_yield`) are computed live from each meter's *lifetime*
+cumulative value. That's only physically meaningful once every
+contributing meter has been accumulating over a comparable time window.
+Confirmed as a real problem against the actual live setup: lifetime `cop`
+came out as 7.19 (real heat pumps run 3–4.5), almost certainly because
+`heatpump_electric`'s raw counter has a much shorter history than
+`heatpump_thermal`'s — mixing a "young" total with an "old" total
+distorts the ratio. `total_consumption` and `household_consumption`
+aren't affected the same way (they're meant to be running lifetime
+totals, and cross-checked consistent against the submeter sum). Not
+fixed for phase 1 — either backfilling accurate `validFrom` per meter
+(documents the mismatch, doesn't fix the underlying math) or moving
+ratio KPIs to delta-based computation in Grafana (matches the pipeline's
+original division of labor, but drops them from the adapter's own state
+tree) would resolve it. Revisit once there's enough live history for the
+mismatch to become negligible, or if it turns out to matter sooner.
+
 ### Registry extensions (added from real-data feedback)
 
 - **`includeInResidual` (per meter, default `true`):** `known_subconsumer`
