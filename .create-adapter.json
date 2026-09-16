@@ -1,0 +1,41 @@
+{
+    "adapterName": "meterops",
+    "title": "MeterOps",
+    "description": "Continuous meter-reading history with automatic device-swap handling and computed energy KPIs",
+    "keywords": "energy,meter,kpi,history,influxdb",
+    "contributors": "",
+    "expert": "yes",
+    "features": [
+        "adapter"
+    ],
+    "adminFeatures": [
+        "custom"
+    ],
+    "type": "energy",
+    "startMode": "daemon",
+    "connectionType": "local",
+    "dataSource": "push",
+    "connectionIndicator": "yes",
+    "language": "TypeScript",
+    "nodeVersion": "22",
+    "adminUi": "json",
+    "tools": [
+        "ESLint"
+    ],
+    "eslintConfig": "official",
+    "releaseScript": "no",
+    "devServer": "local",
+    "devServerPort": 8082,
+    "indentation": "Space (4)",
+    "quotes": "single",
+    "authorName": "SeaSpotter",
+    "authorGithub": "seaspotter",
+    "authorEmail": "seatowage@gmail.com",
+    "gitRemoteProtocol": "HTTPS",
+    "gitCommit": "no",
+    "defaultBranch": "main",
+    "license": "MIT License",
+    "dependabot": "no",
+    "replay": "/tmp/claude-1000/-home-seaspotter-github-iobroker-meterops/3446ddd2-4749-4f5c-8e29-494112cd96f4/scratchpad/create-adapter-answers.json",
+    "creatorVersion": "3.1.5"
+}
