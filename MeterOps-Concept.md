@@ -467,16 +467,27 @@ Goal: let the adapter run unattended for a while and see what breaks.
 - Settle the final KPI set from actual usage, not from the initial guess.
 - Resolve the Influx→VictoriaMetrics question here if it's still open —
   by now there's real query/aggregation experience to decide from.
-- Build out the admin UI now that the role types are known. The
-  General tab (history instance, snapshot schedule) and a Registry tab
-  (still a raw-JSON textarea for meters/groups/tariffs/systemParams) are
-  done. Full field-level editing for meters/groups/tariffs is planned as
-  a **custom React admin UI** (`adminUi: "custom"`, `@iobroker/adapter-react-v5`)
-  rather than a plain jsonConfig table — checked the real jsonConfig
-  schema and table rows can't nest a sub-table, which per-meter source
-  history (multiple time-bounded raw devices) needs. Real scope: new
-  build tooling, an actual React component, not just an extended
-  `jsonConfig.json` — its own dedicated piece of work, not started yet.
+- **Done:** the admin UI is a custom React app (`adminUI.config:
+  "materialize"`, `@iobroker/adapter-react` 2.0.22 + `@material-ui/core`
+  v4, built via `build-adapter react`) rather than a plain jsonConfig
+  table — checked the real jsonConfig schema and confirmed table rows
+  can't nest a sub-table, which per-meter source history (multiple
+  time-bounded raw devices) needs. Scaffolded from
+  `@iobroker/create-adapter`'s own React template (generated into a
+  throwaway dir and merged in) so it matches current tooling/checker
+  conventions exactly, rather than reconstructed from memory. Four tabs
+  — General (history instance, snapshot-schedule cron editor), Meters
+  (role/label/unit/includeInResidual fields plus a real nested
+  add/remove sources sub-table per meter, with a live state picker for
+  `stateId`), Groups (member checklist), Tariffs (validity-period
+  entries) — all editing the single `native.registryConfig` JSON blob
+  client-side (`src/lib/registry-json.ts`); `registry.ts`'s strict
+  validation stays adapter-side only, unchanged. Known simplification:
+  `historyInstance` is a plain text field, not a live-fetched dropdown
+  of history-capable instances (jsonConfig's `instance` picker had a
+  built-in filter for that; `adapter-react`'s `Connection` class only
+  exposes per-adapter-name instance listing) — revisit if that's
+  actually annoying to use.
 
 ### Phase 3 — Community readiness
 
