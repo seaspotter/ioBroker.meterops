@@ -44,10 +44,44 @@ export interface MeterConfig {
     unit: string;
     /** device history for this meter, ordered or not - resolved by validFrom/validTo */
     sources: MeterSource[];
+    /** only meaningful for known_subconsumer: whether this instance counts toward the household_consumption subtraction. Defaults to true - set false to track a submeter without affecting the residual. */
+    includeInResidual?: boolean;
+}
+
+/** A named sum of other meters' live logical values, for reporting purposes (e.g. "all wallboxes combined"). */
+export interface MeterGroupConfig {
+    /** display label for the group */
+    label: string;
+    /** unit of the summed value - should match the members' unit */
+    unit: string;
+    /** meter ids (keys of RegistryConfig.meters) to sum; the group value is only reported once every member has one */
+    members: string[];
+}
+
+/** A fixed-rate tariff's price for a date range - only for rarely-changing contract rates, not spot/dynamic pricing (see "Future ideas" in MeterOps-Concept.md). */
+export interface TariffEntry {
+    /** ISO date (YYYY-MM-DD), inclusive */
+    validFrom: string;
+    /** ISO date (YYYY-MM-DD), inclusive, or null if still active */
+    validTo: string | null;
+    /** price per unit, e.g. EUR/kWh */
+    value: number;
+}
+
+/** Constants that aren't live readings but feed certain KPIs, e.g. specific_yield needs installed PV capacity. */
+export interface SystemParams {
+    /** installed PV capacity in kWp, for the specific_yield KPI (pv_production / pvCapacityKwp) */
+    pvCapacityKwp?: number;
 }
 
 /** The full registry: every configured meter, keyed by a freely chosen meter id. */
 export interface RegistryConfig {
     /** key = freely chosen meter instance id, e.g. "water_garden", "wallbox_main" */
     meters: Record<string, MeterConfig>;
+    /** key = freely chosen group id, e.g. "wallbox_total" */
+    groups?: Record<string, MeterGroupConfig>;
+    /** constants used by certain KPIs, e.g. installed PV capacity */
+    systemParams?: SystemParams;
+    /** key = freely chosen tariff id, e.g. "grid_price", "feed_in_price" */
+    tariffs?: Record<string, TariffEntry[]>;
 }

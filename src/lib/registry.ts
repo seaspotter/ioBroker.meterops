@@ -1,4 +1,11 @@
-import type { MeterConfig, MeterSource, RegistryConfig, SingletonRole } from './registry-types';
+import type {
+    MeterConfig,
+    MeterGroupConfig,
+    MeterSource,
+    RegistryConfig,
+    SingletonRole,
+    TariffEntry,
+} from './registry-types';
 import { SINGLETON_ROLES } from './registry-types';
 
 /** Thrown when native.registryConfig is missing, malformed, or violates the schema (e.g. a duplicate singleton role). */
@@ -45,6 +52,91 @@ function validateRegistryConfig(parsed: unknown): asserts parsed is RegistryConf
             seenSingletonRoles.set(role, meterId);
         }
     }
+
+    const meterIds = new Set(Object.keys(meters));
+    const rest = parsed as Record<string, unknown>;
+    validateGroups(rest.groups, meterIds);
+    validateSystemParams(rest.systemParams);
+    validateTariffs(rest.tariffs);
+}
+
+function validateTariffs(tariffs: unknown): void {
+    if (tariffs === undefined) {
+        return;
+    }
+    if (typeof tariffs !== 'object' || tariffs === null || Array.isArray(tariffs)) {
+        throw new RegistryConfigError('"tariffs" must be an object keyed by tariff id');
+    }
+    for (const [tariffId, entries] of Object.entries(tariffs)) {
+        if (!Array.isArray(entries) || entries.length === 0) {
+            throw new RegistryConfigError(`Tariff "${tariffId}" needs at least one entry`);
+        }
+        entries.forEach((entry, index) => validateTariffEntry(tariffId, index, entry));
+    }
+}
+
+function validateTariffEntry(tariffId: string, index: number, entry: unknown): asserts entry is TariffEntry {
+    if (typeof entry !== 'object' || entry === null) {
+        throw new RegistryConfigError(`Tariff "${tariffId}" entry #${index} must be an object`);
+    }
+    const e = entry as Record<string, unknown>;
+    if (typeof e.validFrom !== 'string' || Number.isNaN(Date.parse(e.validFrom))) {
+        throw new RegistryConfigError(`Tariff "${tariffId}" entry #${index} has an invalid "validFrom"`);
+    }
+    if (e.validTo !== null && (typeof e.validTo !== 'string' || Number.isNaN(Date.parse(e.validTo)))) {
+        throw new RegistryConfigError(`Tariff "${tariffId}" entry #${index} has an invalid "validTo"`);
+    }
+    if (typeof e.value !== 'number' || !Number.isFinite(e.value)) {
+        throw new RegistryConfigError(`Tariff "${tariffId}" entry #${index} needs a numeric "value"`);
+    }
+}
+
+function validateGroups(groups: unknown, meterIds: ReadonlySet<string>): void {
+    if (groups === undefined) {
+        return;
+    }
+    if (typeof groups !== 'object' || groups === null || Array.isArray(groups)) {
+        throw new RegistryConfigError('"groups" must be an object keyed by group id');
+    }
+
+    for (const [groupId, group] of Object.entries(groups)) {
+        if (meterIds.has(groupId)) {
+            throw new RegistryConfigError(`Group id "${groupId}" collides with a meter id`);
+        }
+        validateMeterGroupConfig(groupId, group, meterIds);
+    }
+}
+
+function validateMeterGroupConfig(
+    groupId: string,
+    group: unknown,
+    meterIds: ReadonlySet<string>,
+): asserts group is MeterGroupConfig {
+    if (typeof group !== 'object' || group === null) {
+        throw new RegistryConfigError(`Group "${groupId}" must be an object`);
+    }
+    const g = group as Record<string, unknown>;
+    if (!Array.isArray(g.members) || g.members.length === 0) {
+        throw new RegistryConfigError(`Group "${groupId}" needs at least one entry in "members"`);
+    }
+    for (const memberId of g.members) {
+        if (typeof memberId !== 'string' || !meterIds.has(memberId)) {
+            throw new RegistryConfigError(`Group "${groupId}" references unknown meter "${String(memberId)}"`);
+        }
+    }
+}
+
+function validateSystemParams(systemParams: unknown): void {
+    if (systemParams === undefined) {
+        return;
+    }
+    if (typeof systemParams !== 'object' || systemParams === null) {
+        throw new RegistryConfigError('"systemParams" must be an object');
+    }
+    const p = systemParams as Record<string, unknown>;
+    if (p.pvCapacityKwp !== undefined && (typeof p.pvCapacityKwp !== 'number' || !Number.isFinite(p.pvCapacityKwp))) {
+        throw new RegistryConfigError('"systemParams.pvCapacityKwp" must be a number');
+    }
 }
 
 function validateMeterConfig(meterId: string, meter: unknown): asserts meter is MeterConfig {
@@ -57,6 +149,9 @@ function validateMeterConfig(meterId: string, meter: unknown): asserts meter is 
     }
     if (!Array.isArray(m.sources) || m.sources.length === 0) {
         throw new RegistryConfigError(`Meter "${meterId}" needs at least one entry in "sources"`);
+    }
+    if (m.includeInResidual !== undefined && typeof m.includeInResidual !== 'boolean') {
+        throw new RegistryConfigError(`Meter "${meterId}" has a non-boolean "includeInResidual"`);
     }
     m.sources.forEach((source, index) => validateMeterSource(meterId, index, source));
 }
@@ -108,4 +203,16 @@ export function resolveLogicalValue(meter: MeterConfig, timestamp: Date, rawValu
         throw new RegistryConfigError(`No registry source covers ${timestamp.toISOString()}`);
     }
     return rawValue * (source.scale ?? 1) + source.offset;
+}
+
+/**
+ * Finds the tariff value active at a given point in time, or undefined if no entry covers it. Only meant for
+ * fixed-rate contracts with rare changes - resolved once at adapter startup, not re-checked live.
+ *
+ * @param entries - a tariff's validity-period entries
+ * @param timestamp - point in time to resolve against
+ */
+export function resolveTariffValue(entries: readonly TariffEntry[], timestamp: Date): number | undefined {
+    return entries.find(e => timestamp >= new Date(e.validFrom) && (!e.validTo || timestamp <= new Date(e.validTo)))
+        ?.value;
 }

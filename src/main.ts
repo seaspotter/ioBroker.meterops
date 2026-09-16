@@ -5,7 +5,13 @@
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 import * as utils from '@iobroker/adapter-core';
-import { parseRegistryConfig, resolveActiveSource, resolveLogicalValue, RegistryConfigError } from './lib/registry';
+import {
+    parseRegistryConfig,
+    resolveActiveSource,
+    resolveLogicalValue,
+    resolveTariffValue,
+    RegistryConfigError,
+} from './lib/registry';
 import type { RegistryConfig } from './lib/registry-types';
 import { REPEATABLE_ROLES } from './lib/registry-types';
 import { evaluateKpis, getActiveKpis, KPI_UNITS, type KpiId } from './lib/kpi';
@@ -51,7 +57,9 @@ class Meterops extends utils.Adapter {
         this.log.info(`Loaded registry config with ${meterCount} meter(s)`);
 
         await this.setupMeters(this.registry);
+        await this.setupGroups(this.registry);
         await this.setupKpis(this.registry);
+        await this.setupTariffs(this.registry);
 
         await this.setState('info.connection', true, true);
     }
@@ -93,13 +101,92 @@ class Meterops extends utils.Adapter {
     }
 
     /**
+     * Creates a state for every configured meter group (e.g. "all wallboxes combined").
+     *
+     * @param registry - parsed registry config
+     */
+    private async setupGroups(registry: RegistryConfig): Promise<void> {
+        for (const [groupId, group] of Object.entries(registry.groups ?? {})) {
+            await this.setObjectNotExistsAsync(`groups.${groupId}`, {
+                type: 'state',
+                common: {
+                    name: group.label,
+                    type: 'number',
+                    role: 'value',
+                    unit: group.unit,
+                    read: true,
+                    write: false,
+                },
+                native: {},
+            });
+        }
+    }
+
+    /**
+     * Recomputes every configured meter group from the latest known meter values and writes the changed ones.
+     * A group is only reported once every one of its members has reported a value, to avoid summing a
+     * partial set.
+     */
+    private recomputeGroups(): void {
+        if (!this.registry) {
+            return;
+        }
+
+        for (const [groupId, group] of Object.entries(this.registry.groups ?? {})) {
+            if (!group.members.every(id => this.latestMeterValue.has(id))) {
+                continue;
+            }
+            const sum = group.members.reduce((total, id) => total + (this.latestMeterValue.get(id) ?? 0), 0);
+            void this.setState(`groups.${groupId}`, { val: sum, ack: true });
+        }
+    }
+
+    /**
+     * Resolves each configured tariff's currently active price once at startup and writes it. Fixed-rate
+     * contracts change rarely, so this isn't re-checked live - see resolveTariffValue.
+     *
+     * @param registry - parsed registry config
+     */
+    private async setupTariffs(registry: RegistryConfig): Promise<void> {
+        const now = new Date();
+
+        for (const [tariffId, entries] of Object.entries(registry.tariffs ?? {})) {
+            const value = resolveTariffValue(entries, now);
+            if (value === undefined) {
+                this.log.warn(`Tariff "${tariffId}" has no entry active right now - skipping`);
+                continue;
+            }
+
+            await this.setObjectNotExistsAsync(`tariffs.${tariffId}`, {
+                type: 'state',
+                common: {
+                    name: tariffId,
+                    type: 'number',
+                    role: 'value',
+                    read: true,
+                    write: false,
+                },
+                native: {},
+            });
+            await this.setState(`tariffs.${tariffId}`, { val: value, ack: true });
+        }
+    }
+
+    /**
      * Creates a state for every KPI whose roles are actually configured in the registry (not just those with
      * a live value yet - see MeterOps-Concept.md's getActiveKpis).
      *
      * @param registry - parsed registry config
      */
     private async setupKpis(registry: RegistryConfig): Promise<void> {
-        const configuredRoles = new Set(Object.values(registry.meters).map(m => m.role));
+        const configuredRoles = new Set<string>(
+            Object.values(registry.meters)
+                .filter(m => m.role !== 'known_subconsumer' || m.includeInResidual !== false)
+                .map(m => m.role),
+        );
+        if (registry.systemParams?.pvCapacityKwp !== undefined) {
+            configuredRoles.add('pv_capacity_kwp');
+        }
         this.activeKpiIds = getActiveKpis(configuredRoles);
 
         for (const id of this.activeKpiIds) {
@@ -131,8 +218,15 @@ class Meterops extends utils.Adapter {
         }
 
         const values: Record<string, number> = {};
+        const pvCapacityKwp = this.registry.systemParams?.pvCapacityKwp;
+        if (pvCapacityKwp !== undefined) {
+            values.pv_capacity_kwp = pvCapacityKwp;
+        }
+
         const subconsumerMeterIds = Object.entries(this.registry.meters)
-            .filter(([, m]) => (REPEATABLE_ROLES as readonly string[]).includes(m.role))
+            .filter(
+                ([, m]) => (REPEATABLE_ROLES as readonly string[]).includes(m.role) && m.includeInResidual !== false,
+            )
             .map(([meterId]) => meterId);
 
         for (const [meterId, meter] of Object.entries(this.registry.meters)) {
@@ -222,6 +316,7 @@ class Meterops extends utils.Adapter {
             const logicalValue = resolveLogicalValue(meter, new Date(state.ts), state.val);
             void this.setState(`meters.${meterId}`, { val: logicalValue, ack: true });
             this.latestMeterValue.set(meterId, logicalValue);
+            this.recomputeGroups();
             this.recomputeKpis();
         } catch (err) {
             this.log.error(`Failed to resolve meter "${meterId}" from ${id}: ${(err as Error).message}`);

@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { parseRegistryConfig, RegistryConfigError, resolveLogicalValue } from './registry';
+import { parseRegistryConfig, RegistryConfigError, resolveLogicalValue, resolveTariffValue } from './registry';
 
 describe('registry config', () => {
     it('parses a valid config', () => {
@@ -69,6 +69,125 @@ describe('registry config', () => {
             }),
         );
         expect(Object.keys(config.meters)).to.have.length(2);
+    });
+
+    it('rejects a non-boolean includeInResidual', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: {
+                        a: {
+                            role: 'known_subconsumer',
+                            label: 'A',
+                            unit: 'kWh',
+                            sources: [source],
+                            includeInResidual: 'yes',
+                        },
+                    },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /includeInResidual/);
+    });
+
+    it('parses a valid group referencing existing meters', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        const config = parseRegistryConfig(
+            JSON.stringify({
+                meters: {
+                    wallbox_1: { role: 'known_subconsumer', label: 'Wallbox 1', unit: 'kWh', sources: [source] },
+                    wallbox_2: { role: 'known_subconsumer', label: 'Wallbox 2', unit: 'kWh', sources: [source] },
+                },
+                groups: {
+                    wallbox_total: { label: 'All wallboxes', unit: 'kWh', members: ['wallbox_1', 'wallbox_2'] },
+                },
+            }),
+        );
+        expect(config.groups?.wallbox_total.members).to.deep.equal(['wallbox_1', 'wallbox_2']);
+    });
+
+    it('rejects a group referencing an unknown meter', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: { a: { role: 'known_subconsumer', label: 'A', unit: 'kWh', sources: [source] } },
+                    groups: { g: { label: 'G', unit: 'kWh', members: ['a', 'does_not_exist'] } },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /unknown meter/);
+    });
+
+    it('rejects a group id that collides with a meter id', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: { a: { role: 'known_subconsumer', label: 'A', unit: 'kWh', sources: [source] } },
+                    groups: { a: { label: 'A group', unit: 'kWh', members: ['a'] } },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /collides with a meter id/);
+    });
+
+    it('accepts a numeric systemParams.pvCapacityKwp', () => {
+        const config = parseRegistryConfig(JSON.stringify({ meters: {}, systemParams: { pvCapacityKwp: 9.9 } }));
+        expect(config.systemParams?.pvCapacityKwp).to.equal(9.9);
+    });
+
+    it('rejects a non-numeric systemParams.pvCapacityKwp', () => {
+        expect(() =>
+            parseRegistryConfig(JSON.stringify({ meters: {}, systemParams: { pvCapacityKwp: '9.9' } })),
+        ).to.throw(RegistryConfigError, /pvCapacityKwp/);
+    });
+
+    it('parses valid tariffs', () => {
+        const config = parseRegistryConfig(
+            JSON.stringify({
+                meters: {},
+                tariffs: {
+                    grid_price: [
+                        { validFrom: '2018-06-01', validTo: '2022-12-31', value: 0.28 },
+                        { validFrom: '2023-01-01', validTo: null, value: 0.35 },
+                    ],
+                },
+            }),
+        );
+        expect(config.tariffs?.grid_price).to.have.length(2);
+    });
+
+    it('rejects a tariff with no entries', () => {
+        expect(() => parseRegistryConfig(JSON.stringify({ meters: {}, tariffs: { grid_price: [] } }))).to.throw(
+            RegistryConfigError,
+            /needs at least one entry/,
+        );
+    });
+
+    it('rejects a tariff entry with a non-numeric value', () => {
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: {},
+                    tariffs: { grid_price: [{ validFrom: '2020-01-01', validTo: null, value: '0.28' }] },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /needs a numeric "value"/);
+    });
+});
+
+describe('resolveTariffValue', () => {
+    const gridPrice = [
+        { validFrom: '2018-06-01', validTo: '2022-12-31', value: 0.28 },
+        { validFrom: '2023-01-01', validTo: null, value: 0.35 },
+    ];
+
+    it('resolves the price active at a given date', () => {
+        expect(resolveTariffValue(gridPrice, new Date('2020-01-01'))).to.equal(0.28);
+        expect(resolveTariffValue(gridPrice, new Date('2024-01-01'))).to.equal(0.35);
+    });
+
+    it('returns undefined when no entry covers the timestamp', () => {
+        expect(resolveTariffValue(gridPrice, new Date('2000-01-01'))).to.be.undefined;
     });
 });
 

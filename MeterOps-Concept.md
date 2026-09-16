@@ -65,6 +65,28 @@ const KPI_CATALOG = {
     type: 'residual',              // residual quantity, not a fixed formula
     total: 'total_consumption',    // minuend: itself a computed KPI now
     subtract: 'known_subconsumer'  // subtrahend: sum of ALL instances of this role
+  },
+  // lifetime cumulative ratio (charge/discharge are lifetime counters) - a
+  // period-based (e.g. monthly) efficiency to track degradation is a
+  // Grafana concern on the historized series, not this KPI's job
+  battery_efficiency: {
+    type: 'formula',
+    requires: ['battery_charge', 'battery_discharge'],
+    calc: ({ battery_charge, battery_discharge }) => battery_discharge / battery_charge
+  },
+  // distinct from autarky: excludes battery's contribution, isolating PV's own share
+  pv_share_of_consumption: {
+    type: 'formula',
+    requires: ['pv_production', 'grid_export', 'total_consumption'],
+    calc: ({ pv_production, grid_export, total_consumption }) =>
+      (pv_production - grid_export) / total_consumption
+  },
+  // pv_capacity_kwp isn't a role - it's a constant from systemParams,
+  // threaded into the values map by the caller alongside the live roles
+  specific_yield: {
+    type: 'formula',
+    requires: ['pv_production', 'pv_capacity_kwp'],
+    calc: ({ pv_production, pv_capacity_kwp }) => pv_production / pv_capacity_kwp
   }
 };
 
@@ -107,7 +129,34 @@ as accurate as the underlying meters and battery round-trip efficiency —
 charge/discharge losses (typically 5–15%) mean the formula slightly
 under-counts consumption on days with heavy battery cycling. Not worth
 correcting for in phase 1; revisit if `household_consumption` looks
-systematically off in Phase 2.
+systematically off in Phase 2. (`battery_efficiency` above now measures
+this directly from real data instead of relying on the assumed range.)
+
+### Registry extensions (added from real-data feedback)
+
+- **`includeInResidual` (per meter, default `true`):** `known_subconsumer`
+  instances are summed into `household_consumption`'s subtraction by
+  default, but a meter can opt out (`includeInResidual: false`) to be
+  tracked for its own sake without changing that residual — e.g. a
+  submeter added purely out of curiosity.
+- **Meter groups:** a named sum of specific meter ids, independent of the
+  KPI catalog — e.g. `wallbox_total` combining two wallbox meters into one
+  reported value. Only reported once every member has a value, same rule
+  as the `known_subconsumer` aggregation.
+- **`systemParams`:** constants that aren't live readings but feed certain
+  KPIs — currently just `pvCapacityKwp` for `specific_yield`. Threaded
+  into the KPI values map by the adapter alongside the live roles, so the
+  KPI catalog doesn't need a separate mechanism for constants vs. readings.
+- **Fixed-rate tariff registry:** validity-period entries per tariff id
+  (`grid_price`, `feed_in_price`, ...), resolved once at adapter startup —
+  not re-checked live, since a fixed contract rate changes rarely. Exposed
+  as a plain current-price state, not folded into a "cost so far" KPI:
+  multiplying a *lifetime cumulative* meter by a single current price
+  would silently misreport cost across any historical price change. Actual
+  period cost (e.g. "what did I pay this month") is a Grafana job — delta
+  of the historized cumulative meter × the historized price series over
+  that period — consistent with how rate/delta math is already delegated
+  to Grafana rather than computed by the adapter.
 
 ## Resolver — core logic (database-centric)
 
@@ -297,6 +346,15 @@ decisions, not a fix-up pass before submission.
   can still be registered as `known_subconsumer` instances. Real scope
   increase (accuracy/drift over integration gaps, restart handling), not
   attempted until a concrete device actually needs it.
+- **Dynamic/spot tariffs**: the fixed-rate tariff registry (above) assumes
+  a rarely-changing contract price. A Tibber/aWATTar-style spot tariff
+  changes hourly and would need cost KPIs to read a live price series
+  rather than a validity-period registry - a genuinely bigger design
+  problem (correctly attributing consumption deltas to the price active
+  *during* each delta, not just "the current price"). Not attempted until
+  actually needed; the current live grid/feed-in price states found in the
+  real setup turned out to be a fixed rate that merely lives in a state,
+  not a spot tariff, so this wasn't blocking for now.
 
 ## Development stages
 
