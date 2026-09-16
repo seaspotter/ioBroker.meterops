@@ -45,6 +45,18 @@ export const KPI_UNITS: Record<KpiId, string> = {
     specific_yield: 'kWh/kWp',
 };
 
+/** human-readable English name each KPI is reported under (common.name), rather than the raw snake_case id */
+export const KPI_NAMES: Record<KpiId, string> = {
+    total_consumption: 'Total consumption',
+    self_consumption_ratio: 'Self-consumption ratio',
+    cop: 'Coefficient of performance (COP)',
+    autarky: 'Autarky',
+    household_consumption: 'Household consumption',
+    battery_efficiency: 'Battery round-trip efficiency',
+    pv_share_of_consumption: 'PV share of consumption',
+    specific_yield: 'Specific yield',
+};
+
 export const KPI_CATALOG: Record<KpiId, KpiDef> = {
     total_consumption: {
         type: 'formula',
