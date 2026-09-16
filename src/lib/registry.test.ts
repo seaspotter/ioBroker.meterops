@@ -259,9 +259,15 @@ describe('resolveLogicalValue', () => {
             label: 'Grid import',
             unit: 'kWh',
             sources: [
-                { stateId: 'example.grid_meter...import_wh', validFrom: '2020-01-01', validTo: null, scale: 0.001, offset: 0 },
+                {
+                    stateId: 'example.grid_meter...import_wh',
+                    validFrom: '2020-01-01',
+                    validTo: null,
+                    scale: 0.001,
+                    offset: 0,
+                },
             ],
         };
-        expect(resolveLogicalValue(gridImport, new Date('2024-01-01'), 5000000)).to.be.closeTo(5000.000, 1e-9);
+        expect(resolveLogicalValue(gridImport, new Date('2024-01-01'), 5000000)).to.be.closeTo(5000.0, 1e-9);
     });
 });
