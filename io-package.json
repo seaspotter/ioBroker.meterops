@@ -1,0 +1,109 @@
+{
+    "common": {
+        "name": "meterops",
+        "version": "0.0.1",
+        "news": {
+            "0.0.1": {
+                "en": "initial release",
+                "de": "Erstveröffentlichung",
+                "ru": "Начальная версия",
+                "pt": "lançamento inicial",
+                "nl": "Eerste uitgave",
+                "fr": "Première version",
+                "it": "Versione iniziale",
+                "es": "Versión inicial",
+                "pl": "Pierwsze wydanie",
+                "uk": "Початкова версія",
+                "zh-cn": "首次出版"
+            }
+        },
+        "titleLang": {
+            "en": "MeterOps",
+            "de": "MeterOps",
+            "ru": "МетерОпс",
+            "pt": "MeterOps",
+            "nl": "MeterOps",
+            "fr": "Opérations de compteurs",
+            "it": "MeterOps",
+            "es": "MetroOps",
+            "pl": "LicznikOps",
+            "uk": "MeterOps",
+            "zh-cn": "计量操作"
+        },
+        "desc": {
+            "en": "Continuous meter-reading history with automatic device-swap handling and computed energy KPIs",
+            "de": "Kontinuierliche Zählerstandshistorie mit automatischer Gerätewechselabwicklung und berechneten Energie-KPIs",
+            "ru": "Непрерывная история показаний счетчиков с автоматической заменой устройств и расчетом ключевых показателей эффективности энергопотребления.",
+            "pt": "Histórico contínuo de leitura de medidores com manipulação automática de troca de dispositivos e KPIs de energia computados",
+            "nl": "Continue meterstandgeschiedenis met automatische afhandeling van apparaatwissels en berekende energie-KPI's",
+            "fr": "Historique continu des relevés de compteurs avec gestion automatique des échanges d'appareils et KPI énergétiques calculés",
+            "it": "Cronologia continua delle letture dei contatori con gestione automatica dello scambio dei dispositivi e KPI energetici calcolati",
+            "es": "Historial continuo de lectura de medidores con manejo automático de intercambio de dispositivos y KPI de energía computarizados",
+            "pl": "Ciągła historia odczytów liczników z automatyczną obsługą wymiany urządzeń i obliczonymi wskaźnikami KPI energii",
+            "uk": "Безперервна історія показань лічильників із автоматичною обробкою заміни пристроїв і обчисленими ключовими показниками енергоспоживання",
+            "zh-cn": "具有自动设备交换处理和计算能源 KPI 的连续抄表历史记录"
+        },
+        "authors": [
+            "SeaSpotter <florian.horch@gmail.com>"
+        ],
+        "keywords": ["energy", "meter", "kpi", "history", "influxdb"],
+        "licenseInformation": {
+            "type": "free",
+            "license": "MIT"
+        },
+        "platform": "Javascript/Node.js",
+        "icon": "meterops.png",
+        "enabled": true,
+        "extIcon": "https://raw.githubusercontent.com/seaspotter/ioBroker.meterops/main/admin/meterops.png",
+        "readme": "https://github.com/seaspotter/ioBroker.meterops/blob/main/README.md",
+        "loglevel": "info",
+        "tier": 3,
+        "mode": "daemon",
+        "type": "energy",
+        "compact": true,
+        "connectionType": "local",
+        "dataSource": "push",
+        "adminUI": {
+            "config": "json"
+        },
+        "supportCustoms": true,
+        "dependencies": [
+            {
+                "js-controller": ">=6.0.11"
+            }
+        ],
+        "globalDependencies": [
+            {
+                "admin": ">=7.6.20"
+            }
+        ]
+    },
+    "native": {
+        "option1": true,
+        "option2": "42"
+    },
+    "objects": [],
+    "instanceObjects": [
+        {
+            "_id": "info",
+            "type": "channel",
+            "common": {
+                "name": "Information"
+            },
+            "native": {}
+        },
+        {
+            "_id": "info.connection",
+            "type": "state",
+            "common": {
+                "role": "indicator.connected",
+                "name": "Device or service connected",
+                "type": "boolean",
+                "read": true,
+                "write": false,
+                "def": false
+            },
+            "native": {}
+        }
+    ]
+}
