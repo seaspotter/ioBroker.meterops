@@ -97,4 +97,18 @@ describe('resolveLogicalValue', () => {
             /No registry source/,
         );
     });
+
+    it('applies scale before offset, for sources reporting in a different unit', () => {
+        // real case: grid_import from the household meter reports Wh, but the
+        // logical meter is defined in kWh
+        const gridImport = {
+            role: 'grid_import' as const,
+            label: 'Grid import',
+            unit: 'kWh',
+            sources: [
+                { stateId: 'example.grid_meter...import_wh', validFrom: '2020-01-01', validTo: null, scale: 0.001, offset: 0 },
+            ],
+        };
+        expect(resolveLogicalValue(gridImport, new Date('2024-01-01'), 5000000)).to.be.closeTo(5000.000, 1e-9);
+    });
 });

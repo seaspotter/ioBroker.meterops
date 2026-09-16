@@ -75,6 +75,9 @@ function validateMeterSource(meterId: string, index: number, source: unknown): a
     if (s.validTo !== null && (typeof s.validTo !== 'string' || Number.isNaN(Date.parse(s.validTo)))) {
         throw new RegistryConfigError(`Meter "${meterId}" source #${index} has an invalid "validTo"`);
     }
+    if (s.scale !== undefined && (typeof s.scale !== 'number' || !Number.isFinite(s.scale))) {
+        throw new RegistryConfigError(`Meter "${meterId}" source #${index} has a non-numeric "scale"`);
+    }
     if (typeof s.offset !== 'number' || !Number.isFinite(s.offset)) {
         throw new RegistryConfigError(`Meter "${meterId}" source #${index} needs a numeric "offset"`);
     }
@@ -104,5 +107,5 @@ export function resolveLogicalValue(meter: MeterConfig, timestamp: Date, rawValu
     if (!source) {
         throw new RegistryConfigError(`No registry source covers ${timestamp.toISOString()}`);
     }
-    return rawValue + source.offset;
+    return rawValue * (source.scale ?? 1) + source.offset;
 }
