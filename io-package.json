@@ -64,9 +64,10 @@
         "connectionType": "local",
         "dataSource": "push",
         "adminUI": {
-            "config": "json"
+            "config": "materialize"
         },
         "supportCustoms": true,
+        "eraseOnUpload": true,
         "dependencies": [
             {
                 "js-controller": ">=6.0.11"
