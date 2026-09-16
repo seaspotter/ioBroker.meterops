@@ -4,8 +4,8 @@
 declare global {
     namespace ioBroker {
         interface AdapterConfig {
-            option1: boolean;
-            option2: string;
+            /** JSON-encoded RegistryConfig (see src/lib/registry-types.ts) */
+            registryConfig: string;
         }
     }
 }
