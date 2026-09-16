@@ -151,6 +151,41 @@ original division of labor, but drops them from the adapter's own state
 tree) would resolve it. Revisit once there's enough live history for the
 mismatch to become negligible, or if it turns out to matter sooner.
 
+**Resolved differently than expected — periodic snapshots:** the above
+limitation is actually solved by returning to the tool's original
+premise (a hand-maintained *monthly* reading history). A delta between
+two snapshots taken at the same two points in time is comparable
+regardless of when each raw counter started accumulating — any constant
+head start cancels out in the subtraction. So alongside the live,
+lifetime-cumulative `kpis.*` states, the adapter now also:
+
+- runs a configurable cron schedule (`native.snapshotCron`, admin UI:
+  General tab, default `0 0 1 * *` = monthly on the 1st) that snapshots
+  every meter's current value to `snapshots.<meterId>`
+- on each snapshot, computes the delta against the *previous* snapshot
+  (read back from that same state, so it survives adapter restarts) and
+  recomputes the ratio-type KPIs from those deltas into a parallel
+  `periodKpis.*` namespace, reusing the exact same KPI catalog and
+  `evaluateKpis()` - only the value source differs (deltas vs. live
+  cumulative values)
+- the first snapshot for a meter has no prior value to diff against, so
+  it just sets the baseline; the delta (and period KPIs) become
+  available starting the second scheduled run
+
+`kpis.*` (live, lifetime) and `periodKpis.*` (delta-based, meaningful
+regardless of mismatched counter ages) now coexist - the former for
+"what's the value right now", the latter for "how did this period
+actually perform."
+
+**History logging is no longer manual either:** a new `native.historyInstance`
+setting (admin UI: General tab, an instance picker filtered to adapters
+with `common.getHistory`, e.g. `influxdb.0`) is applied via
+`extendObject`'s `common.custom` to every state the adapter creates
+(`meters.*`, `groups.*`, `kpis.*`, `periodKpis.*`, `tariffs.*`,
+`snapshots.*`) - previously these states existed but nothing was
+actually being persisted to history unless enabled by hand per state in
+Admin's Objects tab.
+
 ### Registry extensions (added from real-data feedback)
 
 - **`includeInResidual` (per meter, default `true`):** `known_subconsumer`
@@ -432,8 +467,16 @@ Goal: let the adapter run unattended for a while and see what breaks.
 - Settle the final KPI set from actual usage, not from the initial guess.
 - Resolve the Influx→VictoriaMetrics question here if it's still open —
   by now there's real query/aggregation experience to decide from.
-- Build out the polished jsonConfig registry table now that the role
-  types are known, replacing the plain-JSON config field from Phase 1.
+- Build out the admin UI now that the role types are known. The
+  General tab (history instance, snapshot schedule) and a Registry tab
+  (still a raw-JSON textarea for meters/groups/tariffs/systemParams) are
+  done. Full field-level editing for meters/groups/tariffs is planned as
+  a **custom React admin UI** (`adminUi: "custom"`, `@iobroker/adapter-react-v5`)
+  rather than a plain jsonConfig table — checked the real jsonConfig
+  schema and table rows can't nest a sub-table, which per-meter source
+  history (multiple time-bounded raw devices) needs. Real scope: new
+  build tooling, an actual React component, not just an extended
+  `jsonConfig.json` — its own dedicated piece of work, not started yet.
 
 ### Phase 3 — Community readiness
 

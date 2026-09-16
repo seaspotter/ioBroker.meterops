@@ -6,6 +6,10 @@ declare global {
         interface AdapterConfig {
             /** JSON-encoded RegistryConfig (see src/lib/registry-types.ts) */
             registryConfig: string;
+            /** adapter instance id (e.g. "influxdb.0") to auto-configure history logging on, or "" to skip */
+            historyInstance: string;
+            /** cron expression: how often every meter's current value is snapshotted for period-based KPIs */
+            snapshotCron: string;
         }
     }
 }

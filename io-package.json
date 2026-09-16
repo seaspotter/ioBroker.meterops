@@ -79,7 +79,9 @@
         ]
     },
     "native": {
-        "registryConfig": "{\"meters\":{}}"
+        "registryConfig": "{\"meters\":{}}",
+        "historyInstance": "",
+        "snapshotCron": "0 0 1 * *"
     },
     "objects": [],
     "instanceObjects": [

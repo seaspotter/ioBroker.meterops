@@ -5,6 +5,7 @@
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 import * as utils from '@iobroker/adapter-core';
+import { Cron } from 'croner';
 import {
     parseRegistryConfig,
     resolveActiveSource,
@@ -23,6 +24,7 @@ class Meterops extends utils.Adapter {
     /** latest offset-corrected logical value per meter id */
     private readonly latestMeterValue = new Map<string, number>();
     private activeKpiIds: KpiId[] = [];
+    private snapshotJob: Cron | undefined;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({
@@ -60,8 +62,36 @@ class Meterops extends utils.Adapter {
         await this.setupGroups(this.registry);
         await this.setupKpis(this.registry);
         await this.setupTariffs(this.registry);
+        this.setupSnapshotSchedule();
 
         await this.setState('info.connection', true, true);
+    }
+
+    /**
+     * Schedules the periodic snapshot job (native.snapshotCron) that drives period-based KPI computation.
+     */
+    private setupSnapshotSchedule(): void {
+        try {
+            this.snapshotJob = new Cron(this.config.snapshotCron, () => {
+                this.takeSnapshot().catch(err => this.log.error(`Snapshot failed: ${(err as Error).message}`));
+            });
+        } catch (err) {
+            this.log.error(`Invalid snapshot schedule "${this.config.snapshotCron}": ${(err as Error).message}`);
+        }
+    }
+
+    /**
+     * Extends a state's common.custom with the configured history instance (native.historyInstance), so it
+     * gets logged automatically. No-op if no history instance is configured.
+     *
+     * @param id - state id (relative to this adapter's namespace)
+     */
+    private async configureHistory(id: string): Promise<void> {
+        const instance = this.config.historyInstance;
+        if (!instance) {
+            return;
+        }
+        await this.extendObjectAsync(id, { common: { custom: { [instance]: { enabled: true } } } });
     }
 
     /**
@@ -79,7 +109,8 @@ class Meterops extends utils.Adapter {
                 continue;
             }
 
-            await this.setObjectNotExistsAsync(`meters.${meterId}`, {
+            const stateId = `meters.${meterId}`;
+            await this.setObjectNotExistsAsync(stateId, {
                 type: 'state',
                 common: {
                     name: meter.label,
@@ -91,6 +122,7 @@ class Meterops extends utils.Adapter {
                 },
                 native: {},
             });
+            await this.configureHistory(stateId);
 
             this.stateToMeter.set(source.stateId, meterId);
             this.subscribeForeignStates(source.stateId);
@@ -107,7 +139,8 @@ class Meterops extends utils.Adapter {
      */
     private async setupGroups(registry: RegistryConfig): Promise<void> {
         for (const [groupId, group] of Object.entries(registry.groups ?? {})) {
-            await this.setObjectNotExistsAsync(`groups.${groupId}`, {
+            const stateId = `groups.${groupId}`;
+            await this.setObjectNotExistsAsync(stateId, {
                 type: 'state',
                 common: {
                     name: group.label,
@@ -119,6 +152,7 @@ class Meterops extends utils.Adapter {
                 },
                 native: {},
             });
+            await this.configureHistory(stateId);
         }
     }
 
@@ -157,7 +191,8 @@ class Meterops extends utils.Adapter {
                 continue;
             }
 
-            await this.setObjectNotExistsAsync(`tariffs.${tariffId}`, {
+            const stateId = `tariffs.${tariffId}`;
+            await this.setObjectNotExistsAsync(stateId, {
                 type: 'state',
                 common: {
                     name: tariffId,
@@ -168,7 +203,8 @@ class Meterops extends utils.Adapter {
                 },
                 native: {},
             });
-            await this.setState(`tariffs.${tariffId}`, { val: value, ack: true });
+            await this.configureHistory(stateId);
+            await this.setState(stateId, { val: value, ack: true });
         }
     }
 
@@ -190,31 +226,36 @@ class Meterops extends utils.Adapter {
         this.activeKpiIds = getActiveKpis(configuredRoles);
 
         for (const id of this.activeKpiIds) {
-            await this.setObjectNotExistsAsync(`kpis.${id}`, {
-                type: 'state',
-                common: {
-                    name: id,
-                    type: 'number',
-                    role: 'value',
-                    unit: KPI_UNITS[id],
-                    read: true,
-                    write: false,
-                },
-                native: {},
-            });
+            for (const stateId of [`kpis.${id}`, `periodKpis.${id}`]) {
+                await this.setObjectNotExistsAsync(stateId, {
+                    type: 'state',
+                    common: {
+                        name: id,
+                        type: 'number',
+                        role: 'value',
+                        unit: KPI_UNITS[id],
+                        read: true,
+                        write: false,
+                    },
+                    native: {},
+                });
+                await this.configureHistory(stateId);
+            }
         }
 
         this.log.info(`Active KPIs: ${this.activeKpiIds.length ? this.activeKpiIds.join(', ') : '(none yet)'}`);
     }
 
     /**
-     * Recomputes every active KPI from the latest known meter values and writes the changed ones. Repeatable
-     * roles (known_subconsumer) are only included once every configured instance has reported a value, to
-     * avoid computing a residual from a partial sum.
+     * Builds the role-keyed values map evaluateKpis() needs, from any meter-id-keyed value source (live
+     * values or period deltas). Repeatable roles (known_subconsumer) are only included once every configured
+     * instance has a value in the given source, to avoid aggregating a partial set.
+     *
+     * @param meterValue - current value per meter id, from whichever source (live or a snapshot delta)
      */
-    private recomputeKpis(): void {
-        if (!this.registry || !this.activeKpiIds.length) {
-            return;
+    private buildKpiValues(meterValue: ReadonlyMap<string, number>): Record<string, number> {
+        if (!this.registry) {
+            return {};
         }
 
         const values: Record<string, number> = {};
@@ -233,23 +274,91 @@ class Meterops extends utils.Adapter {
             if ((REPEATABLE_ROLES as readonly string[]).includes(meter.role)) {
                 continue; // aggregated separately below
             }
-            const value = this.latestMeterValue.get(meterId);
+            const value = meterValue.get(meterId);
             if (value !== undefined) {
                 values[meter.role] = value;
             }
         }
 
-        if (subconsumerMeterIds.length > 0 && subconsumerMeterIds.every(id => this.latestMeterValue.has(id))) {
-            values.known_subconsumer = subconsumerMeterIds.reduce(
-                (sum, id) => sum + (this.latestMeterValue.get(id) ?? 0),
-                0,
-            );
+        if (subconsumerMeterIds.length > 0 && subconsumerMeterIds.every(id => meterValue.has(id))) {
+            values.known_subconsumer = subconsumerMeterIds.reduce((sum, id) => sum + (meterValue.get(id) ?? 0), 0);
         }
 
-        const results = evaluateKpis(values);
+        return values;
+    }
+
+    /**
+     * Recomputes every active KPI from the latest known (live, lifetime-cumulative) meter values and writes
+     * the changed ones. See MeterOps-Concept.md's ratio-KPI limitation - these are only physically meaningful
+     * once every contributing meter has a comparable accumulation history; periodKpis.* (below) avoid that.
+     */
+    private recomputeKpis(): void {
+        if (!this.registry || !this.activeKpiIds.length) {
+            return;
+        }
+        const results = evaluateKpis(this.buildKpiValues(this.latestMeterValue));
         for (const [id, value] of Object.entries(results)) {
             if (value !== undefined) {
                 void this.setState(`kpis.${id}`, { val: value, ack: true });
+            }
+        }
+    }
+
+    /**
+     * Takes a dated snapshot of every meter's current value (native.snapshotCron) and, from the delta against
+     * the previous snapshot, recomputes the period-based KPIs. Deltas cancel out any difference in how long
+     * each raw counter has been accumulating, unlike the lifetime-cumulative kpis.* above.
+     */
+    private async takeSnapshot(): Promise<void> {
+        if (!this.registry) {
+            return;
+        }
+        this.log.info('Taking periodic snapshot for period-based KPIs');
+
+        const deltas = new Map<string, number>();
+        for (const [meterId, currentValue] of this.latestMeterValue.entries()) {
+            const meter = this.registry.meters[meterId];
+            const stateId = `snapshots.${meterId}`;
+
+            const previous = await this.getStateAsync(stateId);
+            if (previous && typeof previous.val === 'number') {
+                deltas.set(meterId, currentValue - previous.val);
+            } else {
+                this.log.debug(`No prior snapshot for "${meterId}" yet - baseline set now, delta available next cycle`);
+            }
+
+            await this.setObjectNotExistsAsync(stateId, {
+                type: 'state',
+                common: {
+                    name: `${meter.label} (snapshot)`,
+                    type: 'number',
+                    role: 'value',
+                    unit: meter.unit,
+                    read: true,
+                    write: false,
+                },
+                native: {},
+            });
+            await this.configureHistory(stateId);
+            await this.setState(stateId, { val: currentValue, ack: true });
+        }
+
+        await this.recomputePeriodKpis(deltas);
+    }
+
+    /**
+     * Writes the period-based KPIs (periodKpis.*) computed from the given per-meter deltas.
+     *
+     * @param deltas - change since the previous snapshot, per meter id (only meters with both readings)
+     */
+    private async recomputePeriodKpis(deltas: ReadonlyMap<string, number>): Promise<void> {
+        if (!this.registry || !this.activeKpiIds.length) {
+            return;
+        }
+        const results = evaluateKpis(this.buildKpiValues(deltas));
+        for (const [id, value] of Object.entries(results)) {
+            if (value !== undefined) {
+                await this.setState(`periodKpis.${id}`, { val: value, ack: true });
             }
         }
     }
@@ -261,11 +370,7 @@ class Meterops extends utils.Adapter {
      */
     private onUnload(callback: () => void): void {
         try {
-            // Here you must clear all timeouts or intervals that may still be active
-            // clearTimeout(timeout1);
-            // clearTimeout(timeout2);
-            // ...
-            // clearInterval(interval1);
+            this.snapshotJob?.stop();
 
             callback();
         } catch (error) {
