@@ -7,11 +7,16 @@
 import * as utils from '@iobroker/adapter-core';
 import { parseRegistryConfig, resolveActiveSource, resolveLogicalValue, RegistryConfigError } from './lib/registry';
 import type { RegistryConfig } from './lib/registry-types';
+import { REPEATABLE_ROLES } from './lib/registry-types';
+import { evaluateKpis, getActiveKpis, KPI_UNITS, type KpiId } from './lib/kpi';
 
 class Meterops extends utils.Adapter {
     private registry: RegistryConfig | undefined;
     /** raw ioBroker state ID -> meter id, for the sources currently active */
     private readonly stateToMeter = new Map<string, string>();
+    /** latest offset-corrected logical value per meter id */
+    private readonly latestMeterValue = new Map<string, number>();
+    private activeKpiIds: KpiId[] = [];
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({
@@ -46,6 +51,7 @@ class Meterops extends utils.Adapter {
         this.log.info(`Loaded registry config with ${meterCount} meter(s)`);
 
         await this.setupMeters(this.registry);
+        await this.setupKpis(this.registry);
 
         await this.setState('info.connection', true, true);
     }
@@ -83,6 +89,74 @@ class Meterops extends utils.Adapter {
             this.log.debug(
                 `Meter "${meterId}" resolved to source ${source.stateId} (scale ${source.scale ?? 1}, offset ${source.offset})`,
             );
+        }
+    }
+
+    /**
+     * Creates a state for every KPI whose roles are actually configured in the registry (not just those with
+     * a live value yet - see MeterOps-Concept.md's getActiveKpis).
+     *
+     * @param registry - parsed registry config
+     */
+    private async setupKpis(registry: RegistryConfig): Promise<void> {
+        const configuredRoles = new Set(Object.values(registry.meters).map(m => m.role));
+        this.activeKpiIds = getActiveKpis(configuredRoles);
+
+        for (const id of this.activeKpiIds) {
+            await this.setObjectNotExistsAsync(`kpis.${id}`, {
+                type: 'state',
+                common: {
+                    name: id,
+                    type: 'number',
+                    role: 'value',
+                    unit: KPI_UNITS[id],
+                    read: true,
+                    write: false,
+                },
+                native: {},
+            });
+        }
+
+        this.log.info(`Active KPIs: ${this.activeKpiIds.length ? this.activeKpiIds.join(', ') : '(none yet)'}`);
+    }
+
+    /**
+     * Recomputes every active KPI from the latest known meter values and writes the changed ones. Repeatable
+     * roles (known_subconsumer) are only included once every configured instance has reported a value, to
+     * avoid computing a residual from a partial sum.
+     */
+    private recomputeKpis(): void {
+        if (!this.registry || !this.activeKpiIds.length) {
+            return;
+        }
+
+        const values: Record<string, number> = {};
+        const subconsumerMeterIds = Object.entries(this.registry.meters)
+            .filter(([, m]) => (REPEATABLE_ROLES as readonly string[]).includes(m.role))
+            .map(([meterId]) => meterId);
+
+        for (const [meterId, meter] of Object.entries(this.registry.meters)) {
+            if ((REPEATABLE_ROLES as readonly string[]).includes(meter.role)) {
+                continue; // aggregated separately below
+            }
+            const value = this.latestMeterValue.get(meterId);
+            if (value !== undefined) {
+                values[meter.role] = value;
+            }
+        }
+
+        if (subconsumerMeterIds.length > 0 && subconsumerMeterIds.every(id => this.latestMeterValue.has(id))) {
+            values.known_subconsumer = subconsumerMeterIds.reduce(
+                (sum, id) => sum + (this.latestMeterValue.get(id) ?? 0),
+                0,
+            );
+        }
+
+        const results = evaluateKpis(values);
+        for (const [id, value] of Object.entries(results)) {
+            if (value !== undefined) {
+                void this.setState(`kpis.${id}`, { val: value, ack: true });
+            }
         }
     }
 
@@ -147,6 +221,8 @@ class Meterops extends utils.Adapter {
         try {
             const logicalValue = resolveLogicalValue(meter, new Date(state.ts), state.val);
             void this.setState(`meters.${meterId}`, { val: logicalValue, ack: true });
+            this.latestMeterValue.set(meterId, logicalValue);
+            this.recomputeKpis();
         } catch (err) {
             this.log.error(`Failed to resolve meter "${meterId}" from ${id}: ${(err as Error).message}`);
         }
