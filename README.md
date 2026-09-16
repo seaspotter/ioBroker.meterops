@@ -99,6 +99,9 @@ of [ioBroker.repositories](https://github.com/ioBroker/ioBroker.repositories#req
     ### **WORK IN PROGRESS**
 -->
 ### **WORK IN PROGRESS**
+* (SeaSpotter) nothing yet
+
+### 0.0.1 (2026-09-16)
 * (SeaSpotter) initial release
 
 ## License
