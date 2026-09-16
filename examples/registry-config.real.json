@@ -275,6 +275,9 @@
             "members": ["wallbox_1", "wallbox_2"]
         }
     },
+    "systemParams": {
+        "pvCapacityKwp": 10
+    },
     "tariffs": {
         "grid_price": [{ "validFrom": "2025-09-30", "validTo": null, "value": 0.30 }],
         "feed_in_price": [{ "validFrom": "2025-09-30", "validTo": null, "value": 0.08 }]
