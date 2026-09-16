@@ -104,6 +104,8 @@ of [ioBroker.repositories](https://github.com/ioBroker/ioBroker.repositories#req
 ### 0.0.1 (2026-09-16)
 * (SeaSpotter) initial release
 
+Older entries are archived in [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
+
 ## License
 MIT License
 
