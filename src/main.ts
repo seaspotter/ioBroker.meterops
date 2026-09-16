@@ -5,11 +5,13 @@
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 import * as utils from '@iobroker/adapter-core';
-import { parseRegistryConfig, RegistryConfigError } from './lib/registry';
+import { parseRegistryConfig, resolveActiveSource, resolveLogicalValue, RegistryConfigError } from './lib/registry';
 import type { RegistryConfig } from './lib/registry-types';
 
 class Meterops extends utils.Adapter {
     private registry: RegistryConfig | undefined;
+    /** raw ioBroker state ID -> meter id, for the sources currently active */
+    private readonly stateToMeter = new Map<string, string>();
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({
@@ -43,7 +45,45 @@ class Meterops extends utils.Adapter {
         const meterCount = Object.keys(this.registry.meters).length;
         this.log.info(`Loaded registry config with ${meterCount} meter(s)`);
 
-        // Resolver core (subscribing to raw states, writing logical states) - Phase 1 step 3.
+        await this.setupMeters(this.registry);
+
+        await this.setState('info.connection', true, true);
+    }
+
+    /**
+     * Creates the logical state for each configured meter and subscribes to its currently active raw source.
+     *
+     * @param registry - parsed registry config
+     */
+    private async setupMeters(registry: RegistryConfig): Promise<void> {
+        const now = new Date();
+
+        for (const [meterId, meter] of Object.entries(registry.meters)) {
+            const source = resolveActiveSource(meter, now);
+            if (!source) {
+                this.log.warn(`Meter "${meterId}" has no registry source active right now - skipping`);
+                continue;
+            }
+
+            await this.setObjectNotExistsAsync(`meters.${meterId}`, {
+                type: 'state',
+                common: {
+                    name: meter.label,
+                    type: 'number',
+                    role: 'value',
+                    unit: meter.unit,
+                    read: true,
+                    write: false,
+                },
+                native: {},
+            });
+
+            this.stateToMeter.set(source.stateId, meterId);
+            this.subscribeForeignStates(source.stateId);
+            this.log.debug(
+                `Meter "${meterId}" resolved to source ${source.stateId} (scale ${source.scale ?? 1}, offset ${source.offset})`,
+            );
+        }
     }
 
     /**
@@ -82,26 +122,33 @@ class Meterops extends utils.Adapter {
     // }
 
     /**
-     * Is called if a subscribed state changes
+     * Is called if a subscribed (raw source) state changes - resolves it through the registry and writes the
+     * corresponding logical meter state.
      *
      * @param id - State ID
      * @param state - State object
      */
     private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
-        if (state) {
-            // The state was changed
-            this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
+        if (!state || !this.registry) {
+            return;
+        }
 
-            if (state.ack === false) {
-                // This is a command from the user (e.g., from the UI or other adapter)
-                // and should be processed by the adapter
-                this.log.info(`User command received for ${id}: ${state.val}`);
+        const meterId = this.stateToMeter.get(id);
+        if (!meterId) {
+            return;
+        }
 
-                // TODO: Add your control logic here
-            }
-        } else {
-            // The object was deleted or the state value has expired
-            this.log.info(`state ${id} deleted`);
+        const meter = this.registry.meters[meterId];
+        if (typeof state.val !== 'number') {
+            this.log.warn(`Meter "${meterId}": raw value from ${id} is not a number (${JSON.stringify(state.val)})`);
+            return;
+        }
+
+        try {
+            const logicalValue = resolveLogicalValue(meter, new Date(state.ts), state.val);
+            void this.setState(`meters.${meterId}`, { val: logicalValue, ack: true });
+        } catch (err) {
+            this.log.error(`Failed to resolve meter "${meterId}" from ${id}: ${(err as Error).message}`);
         }
     }
     // If you need to accept messages in your adapter, uncomment the following block and the corresponding line in the constructor.

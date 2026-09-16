@@ -28,7 +28,9 @@ export interface MeterSource {
     validFrom: string;
     /** ISO date (YYYY-MM-DD), inclusive, or null if still active */
     validTo: string | null;
-    /** added to the raw reading to continue the logical series across a device swap */
+    /** raw reading is multiplied by this before offset is added - e.g. 0.001 to convert a Wh source into a kWh meter. Defaults to 1. */
+    scale?: number;
+    /** added to the scaled reading to continue the logical series across a device swap */
     offset: number;
 }
 

@@ -1,0 +1,71 @@
+{
+    "meters": {
+        "grid_import": {
+            "role": "grid_import",
+            "label": "Grid Import (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.grid_meter.import_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "grid_export": {
+            "role": "grid_export",
+            "label": "Grid Export (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.grid_meter.export_wh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "scale": 0.001,
+                    "offset": 0
+                }
+            ]
+        },
+        "pv_production": {
+            "role": "pv_production",
+            "label": "PV Production (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.pv_monitor.total_production_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "battery_charge": {
+            "role": "battery_charge",
+            "label": "Battery Charge (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.battery_meter.charge_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        },
+        "battery_discharge": {
+            "role": "battery_discharge",
+            "label": "Battery Discharge (example)",
+            "unit": "kWh",
+            "sources": [
+                {
+                    "stateId": "example.battery_meter.discharge_kwh",
+                    "validFrom": "2025-09-30",
+                    "validTo": null,
+                    "offset": 0
+                }
+            ]
+        }
+    }
+}
