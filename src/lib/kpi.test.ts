@@ -14,7 +14,7 @@ describe('getActiveKpis', () => {
         expect(getActiveKpis(['heatpump_thermal', 'heatpump_electric'])).to.deep.equal(['cop']);
     });
 
-    it('activates total_consumption, self_consumption_ratio and autarky from the grid/PV/battery roles', () => {
+    it('activates every non-heatpump, non-residual KPI from the grid/PV/battery roles', () => {
         const active = getActiveKpis([
             'grid_import',
             'grid_export',
@@ -22,9 +22,16 @@ describe('getActiveKpis', () => {
             'battery_charge',
             'battery_discharge',
         ]);
-        expect(active).to.have.members(['total_consumption', 'self_consumption_ratio', 'autarky']);
-        // total_consumption must be computed before autarky, which depends on it
+        expect(active).to.have.members([
+            'total_consumption',
+            'self_consumption_ratio',
+            'autarky',
+            'battery_efficiency',
+            'pv_share_of_consumption',
+        ]);
+        // total_consumption must be computed before its dependents
         expect(active.indexOf('total_consumption')).to.be.lessThan(active.indexOf('autarky'));
+        expect(active.indexOf('total_consumption')).to.be.lessThan(active.indexOf('pv_share_of_consumption'));
     });
 
     it('additionally activates household_consumption once known_subconsumer is available', () => {
@@ -77,5 +84,29 @@ describe('evaluateKpis', () => {
     it('computes cop independently of the grid/PV roles', () => {
         const results = evaluateKpis({ heatpump_thermal: 30, heatpump_electric: 10 });
         expect(results.cop).to.be.closeTo(3, 1e-9);
+    });
+
+    it('computes battery_efficiency from charge/discharge alone', () => {
+        const results = evaluateKpis({ battery_charge: 100, battery_discharge: 85 });
+        expect(results.battery_efficiency).to.be.closeTo(0.85, 1e-9);
+    });
+
+    it('computes pv_share_of_consumption, distinct from autarky when battery is involved', () => {
+        const results = evaluateKpis({
+            grid_import: 10,
+            grid_export: 5,
+            pv_production: 20,
+            battery_charge: 2,
+            battery_discharge: 1,
+        });
+
+        // (20 - 5) / 24 - excludes battery's contribution, unlike autarky
+        expect(results.pv_share_of_consumption).to.be.closeTo(15 / 24, 1e-9);
+        expect(results.pv_share_of_consumption).to.not.be.closeTo(results.autarky!, 1e-6);
+    });
+
+    it('computes specific_yield from pv_production and the pv_capacity_kwp constant', () => {
+        const results = evaluateKpis({ pv_production: 5000, pv_capacity_kwp: 10 });
+        expect(results.specific_yield).to.be.closeTo(500, 1e-9);
     });
 });

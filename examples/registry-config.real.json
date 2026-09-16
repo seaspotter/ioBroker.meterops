@@ -267,5 +267,16 @@
                 }
             ]
         }
+    },
+    "groups": {
+        "wallbox_total": {
+            "label": "Wallboxes Total (example)",
+            "unit": "kWh",
+            "members": ["wallbox_1", "wallbox_2"]
+        }
+    },
+    "tariffs": {
+        "grid_price": [{ "validFrom": "2025-09-30", "validTo": null, "value": 0.30 }],
+        "feed_in_price": [{ "validFrom": "2025-09-30", "validTo": null, "value": 0.08 }]
     }
 }
