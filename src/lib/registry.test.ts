@@ -71,6 +71,40 @@ describe('registry config', () => {
         expect(Object.keys(config.meters)).to.have.length(2);
     });
 
+    it('rejects a meter id with characters that would create an unintended nested state path', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: { 'grid.import': { role: 'grid_import', label: 'A', unit: 'kWh', sources: [source] } },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /may only contain letters, numbers/);
+    });
+
+    it('rejects a group id with invalid characters', () => {
+        const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: { a: { role: 'known_subconsumer', label: 'A', unit: 'kWh', sources: [source] } },
+                    groups: { 'my group': { label: 'G', unit: 'kWh', members: ['a'] } },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /may only contain letters, numbers/);
+    });
+
+    it('rejects a tariff id with invalid characters', () => {
+        expect(() =>
+            parseRegistryConfig(
+                JSON.stringify({
+                    meters: {},
+                    tariffs: { 'grid price': [{ validFrom: '2020-01-01', validTo: null, value: 0.3 }] },
+                }),
+            ),
+        ).to.throw(RegistryConfigError, /may only contain letters, numbers/);
+    });
+
     it('rejects a non-boolean includeInResidual', () => {
         const source = { stateId: 'raw.a', validFrom: '2020-01-01', validTo: null, offset: 0 };
         expect(() =>

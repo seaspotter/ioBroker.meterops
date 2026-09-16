@@ -11,6 +11,19 @@ import { SINGLETON_ROLES } from './registry-types';
 /** Thrown when native.registryConfig is missing, malformed, or violates the schema (e.g. a duplicate singleton role). */
 export class RegistryConfigError extends Error {}
 
+// Meter/group/tariff ids become ioBroker state-id path segments (e.g. `meters.<id>`). ioBroker's own
+// FORBIDDEN_CHARS allows '.' and '/', but those would silently create unintended nested channels here -
+// stricter than the platform minimum on purpose.
+const VALID_ID = /^[a-zA-Z0-9_-]+$/;
+
+function validateId(kind: string, id: string): void {
+    if (!VALID_ID.test(id)) {
+        throw new RegistryConfigError(
+            `${kind} id "${id}" may only contain letters, numbers, "_" and "-" (it becomes part of a state id)`,
+        );
+    }
+}
+
 /**
  * Parses and validates the raw JSON from the adapter's native.registryConfig field.
  *
@@ -39,6 +52,7 @@ function validateRegistryConfig(parsed: unknown): asserts parsed is RegistryConf
     const seenSingletonRoles = new Map<SingletonRole, string>();
 
     for (const [meterId, meter] of Object.entries(meters as Record<string, unknown>)) {
+        validateId('Meter', meterId);
         validateMeterConfig(meterId, meter);
 
         if ((SINGLETON_ROLES as readonly string[]).includes(meter.role)) {
@@ -68,6 +82,7 @@ function validateTariffs(tariffs: unknown): void {
         throw new RegistryConfigError('"tariffs" must be an object keyed by tariff id');
     }
     for (const [tariffId, entries] of Object.entries(tariffs)) {
+        validateId('Tariff', tariffId);
         if (!Array.isArray(entries) || entries.length === 0) {
             throw new RegistryConfigError(`Tariff "${tariffId}" needs at least one entry`);
         }
@@ -100,6 +115,7 @@ function validateGroups(groups: unknown, meterIds: ReadonlySet<string>): void {
     }
 
     for (const [groupId, group] of Object.entries(groups)) {
+        validateId('Group', groupId);
         if (meterIds.has(groupId)) {
             throw new RegistryConfigError(`Group id "${groupId}" collides with a meter id`);
         }

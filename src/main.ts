@@ -15,7 +15,7 @@ import {
 } from './lib/registry';
 import type { RegistryConfig } from './lib/registry-types';
 import { REPEATABLE_ROLES } from './lib/registry-types';
-import { evaluateKpis, getActiveKpis, KPI_UNITS, type KpiId } from './lib/kpi';
+import { evaluateKpis, getActiveKpis, KPI_NAMES, KPI_UNITS, type KpiId } from './lib/kpi';
 
 class Meterops extends utils.Adapter {
     private registry: RegistryConfig | undefined;
@@ -226,11 +226,15 @@ class Meterops extends utils.Adapter {
         this.activeKpiIds = getActiveKpis(configuredRoles);
 
         for (const id of this.activeKpiIds) {
-            for (const stateId of [`kpis.${id}`, `periodKpis.${id}`]) {
+            const variants: [stateId: string, name: string][] = [
+                [`kpis.${id}`, KPI_NAMES[id]],
+                [`periodKpis.${id}`, `${KPI_NAMES[id]} (period)`],
+            ];
+            for (const [stateId, name] of variants) {
                 await this.setObjectNotExistsAsync(stateId, {
                     type: 'state',
                     common: {
-                        name: id,
+                        name,
                         type: 'number',
                         role: 'value',
                         unit: KPI_UNITS[id],
