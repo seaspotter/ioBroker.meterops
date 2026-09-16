@@ -227,7 +227,7 @@
         },
         "submeter_3dprinter": {
             "role": "known_subconsumer",
-            "label": "3D-Drucker 3D printer (Shelly)",
+            "label": "3D Printer (example)",
             "unit": "kWh",
             "sources": [
                 {
