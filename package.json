@@ -41,7 +41,7 @@
     "@material-ui/core": "^4.12.4",
     "@tsconfig/node22": "^22.0.6",
     "@types/iobroker": "npm:@iobroker/types@^7.2.2",
-    "@types/node": "^22.20.3",
+    "@types/node": "^22.20.5",
     "@types/react": "^17.0.93",
     "@types/react-dom": "^17.0.26",
     "react": "^17.0.2",
